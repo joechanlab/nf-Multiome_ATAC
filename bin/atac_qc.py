@@ -3,7 +3,6 @@
 import argparse
 import numpy as np
 import scanpy as sc
-import muon as mu
 from muon import atac as ac
 
 
@@ -20,10 +19,7 @@ def main():
     )
     args = parser.parse_args()
 
-    mdata = mu.read_10x_h5(args.input_h5ad)
-    mdata.var_names_make_unique()
-
-    atac = mdata.mod["atac"]
+    atac = sc.read_h5ad(args.input_h5ad)
 
     # Calculate general QC metrics using scanpy
     sc.pp.calculate_qc_metrics(atac, percent_top=None, log1p=False, inplace=True)
