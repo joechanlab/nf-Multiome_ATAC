@@ -1,12 +1,9 @@
 #!/usr/bin/env Rscript
 
 suppressMessages({
-    library(Signac)
-    library(Seurat)
-    library(GenomeInfoDb)
-    library(EnsDb.Hsapiens.v86)
-    library(ggplot2)
-    library(patchwork)
+    library(ArchR)
+    library(parallel)
+    library(optparse)
 })
 
 set.seed(1)
