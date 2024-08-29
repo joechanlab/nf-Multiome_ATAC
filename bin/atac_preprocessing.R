@@ -35,9 +35,9 @@ if (is.null(opt$input_fragment) || is.null(opt$input_h5ad) || is.null(opt$sample
     stop("All arguments are required.", call.=FALSE)
 }
 
-# Input files
-filterTSS = 9
-filterFrags = ifelse(grepl('RU581_LN', opt$sample_name), 5000, 2000)
+# Set filtering parameters
+filterTSS <- 9
+filterFrags <- ifelse(grepl('RU581_LN', opt$sample_name), 5000, 2000)
 
 # Create Arrow files
 ArrowFiles <- createArrowFiles(
@@ -51,56 +51,64 @@ ArrowFiles <- createArrowFiles(
     excludeChr = c('chrM')
 )
 
-# Create project
-proj_name <- opt$sample_name
+# Create ArchR project
+proj_name <- opt$output_dir
 proj <- ArchRProject(
     ArrowFiles = ArrowFiles,
-    outputDirectory = opt$output_dir,
+    outputDirectory = proj_name,
     copyArrows = FALSE
 )
 
-# Load RNA files
-# Subset of cells determined in RNA
-adata = read_h5ad(opt$input_h5ad)
+# Load RNA data and subset cells
+adata <- read_h5ad(opt$input_h5ad)
 multiome_cells <- paste0(opt$sample_name, "#", rownames(adata))
 multiome_cells <- intersect(multiome_cells, getCellNames(proj))
+proj <- subsetArchRProject(proj, multiome_cells, proj_name, force=TRUE)
 
-# Subset
-proj <- subsetArchRProject(proj, multiome_cells, proj_name, force=T)
-
-# SVD, Clustering, UMAP
+# Perform dimensionality reduction and clustering
 proj <- addIterativeLSI(ArchRProj = proj, useMatrix = "TileMatrix",
     name = "IterativeLSI", scaleDims=FALSE, force=TRUE, varFeatures=25000)
-var_features = proj@reducedDims[['IterativeLSI']]$LSIFeatures
+var_features <- proj@reducedDims[['IterativeLSI']]$LSIFeatures
 
-# Gene scores with selected features
-# Artificial black list to exclude all non variable features
+# Add gene score matrices
 chrs <- getChromSizes(proj)
 var_features_gr <- GRanges(var_features$seqnames, IRanges(var_features$start, var_features$start + 500))
 blacklist <- setdiff(chrs, var_features_gr)
 proj <- addGeneScoreMatrix(proj, matrixName='GeneScoreMatrix', force=TRUE, blacklist=blacklist)
-# Full gene activity
-proj <- addGeneScoreMatrix(proj, matrixName='GeneScoreMatrixFull', force = T)
+proj <- addGeneScoreMatrix(proj, matrixName='GeneScoreMatrixFull', force=TRUE)
 
-# Peaks
-lsi = getReducedDims(proj, reducedDims = 'IterativeLSI')
-res_phenograph = Rphenograph(lsi, k=15)
-clusters_phenograph = membership(res_phenograph[[2]])
-proj$Clusters = paste0('C', as.character(clusters_phenograph))
+# Perform clustering and peak calling
+lsi <- getReducedDims(proj, reducedDims = 'IterativeLSI')
+res_phenograph <- Rphenograph(lsi, k=15)
+clusters_phenograph <- membership(res_phenograph[[2]])
+proj$Clusters <- paste0('C', as.character(clusters_phenograph))
 proj <- addGroupCoverages(proj, groupBy='Clusters', maxFragmentLength=147)
 proj <- addReproduciblePeakSet(proj, groupBy='Clusters')
 proj <- addPeakMatrix(proj, maxFragmentLength=147, ceiling=10^9)
 
-# Add motif matches
-proj <- addMotifAnnotations(ArchRProj = proj, motifSet = "cisbp", name = "Motif_cisbp", force = T)
-proj <- addMotifAnnotations(ArchRProj = proj, motifSet = "vierstra", name = "Motif_vierstra", collection='archetype', force = T)
-motif_dir = dirname(proj@peakAnnotation[['Motif_cisbp']]$Positions)
-ofile = file.path(opt$output_dir, 'PeaksOverlapMotifs_cisbp.csv')
-write.table(df, ofile, row.names=F, quote=F, sep='\t')
-motif_dir = dirname(proj@peakAnnotation[['Motif_vierstra']]$Positions)
-ofile = file.path(opt$output_dir, 'PeaksOverlapMotifs_viestra.csv')
-write.table(df, ofile, row.names=F, quote=F, sep='\t')
+# Add motif annotations
+proj <- addMotifAnnotations(ArchRProj = proj, motifSet = "cisbp", name = "Motif", force = TRUE)
+motif_dir <- dirname(proj@peakAnnotation[['Motif']]$Positions)
+ofile <- file.path(opt$output_dir, 'PeaksOverlapMotifs.csv')
+write.table(df, ofile, row.names=FALSE, quote=FALSE, sep='\t')
 
-# Save
+# Save ArchR project
 proj <- saveArchRProject(ArchRProj = proj)
 
+# Extract and reorder peak information
+peaks <- getPeakSet(proj)
+peak.counts <- getMatrixFromProject(proj, 'PeakMatrix')
+chr_order <- sort(seqlevels(peaks))
+reordered_features <- lapply(chr_order, function(chr) peaks[seqnames(peaks) == chr])
+reordered_features <- Reduce("c", reordered_features)
+
+# Export peak counts and information
+peak_counts_dir <- file.path(proj_name, "peak_counts")
+dir.create(peak_counts_dir)
+counts <- assays(peak.counts)[['PeakMatrix']]
+writeMM(counts, file.path(peak_counts_dir, "counts.mtx"))
+
+write.csv(colnames(peak.counts), file.path(peak_counts_dir, "cells.csv"), quote=FALSE, row.names=FALSE)
+
+names(reordered_features) <- sprintf("Peak%d", seq_along(reordered_features))
+write.csv(as.data.frame(reordered_features), file.path(peak_counts_dir, "peaks.csv"), quote=FALSE, row.names=FALSE)

@@ -1,7 +1,7 @@
 process ATAC_PREPROCESS {
     label 'process_medium'
     conda '/usersoftware/chanj3/ArchR'
-    publishDir "${params.outdir}/atac_qc/", mode: 'copy'
+    publishDir "${params.outdir}/atac_preprocess/", mode: 'copy'
 
     input:
     tuple val(name), path(rna_h5ad_path), path(atac_h5ad_path), path(fragment_path), path(fragment_index_path)
