@@ -3,6 +3,8 @@
 suppressMessages({
     library(ArchR)
     library(parallel)
+    library(anndata)
+    library(Rphenograph)
     library(optparse)
 })
 
@@ -92,6 +94,13 @@ proj <- addPeakMatrix(proj, maxFragmentLength=147, ceiling=10^9)
 # Add motif matches
 proj <- addMotifAnnotations(ArchRProj = proj, motifSet = "cisbp", name = "Motif_cisbp", force = T)
 proj <- addMotifAnnotations(ArchRProj = proj, motifSet = "vierstra", name = "Motif_vierstra", collection='archetype', force = T)
+motif_dir = dirname(proj@peakAnnotation[['Motif_cisbp']]$Positions)
+ofile = file.path(opt$output_dir, 'PeaksOverlapMotifs_cisbp.csv')
+write.table(df, ofile, row.names=F, quote=F, sep='\t')
+motif_dir = dirname(proj@peakAnnotation[['Motif_vierstra']]$Positions)
+ofile = file.path(opt$output_dir, 'PeaksOverlapMotifs_viestra.csv')
+write.table(df, ofile, row.names=F, quote=F, sep='\t')
 
 # Save
 proj <- saveArchRProject(ArchRProj = proj)
+
