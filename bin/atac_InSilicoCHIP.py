@@ -24,7 +24,8 @@ def parse_arguments():
     parser.add_argument("atac_dir", help="ATAC directory")
     parser.add_argument("rna_h5ad", help="RNA path (after SEACells)")
     parser.add_argument("rna_dir", help="RNA directory (SEACells)")
-    parser.add_argument("output_dir", help="Path to output directory")
+    parser.add_argument("output_csv", help="Path to output csv")
+    parser.add_argument("output_pkl", help="Path to output pkl")
     parser.add_argument(
         "--mode",
         choices=["pearson", "spearman", "spearman.include_repress"],
@@ -84,8 +85,8 @@ def load_input_files(args):
     mc_assignments = pd.read_csv(
         os.path.join(args.rna_dir, "mc_assignments.csv"), sep=",", index_col=0
     )["SEACell"]
-    mc_assignments.index = mc_assignments.index.str.replace(
-        f"{args.sample}_", f"{args.sample}#"
+    mc_assignments.index = f"{args.sample}#" + mc_assignments.index.str.replace(
+        f"{args.sample}_", ""
     )
     mc_assignments = f"{args.sample}#" + mc_assignments
 
@@ -95,9 +96,7 @@ def load_input_files(args):
     mat = mmread(os.path.join(args.atac_dir, "peak_counts/counts.mtx"))
     mat = csc_matrix(mat)
 
-    peak_df = pd.read_csv(
-        os.path.join(args.atac_dir, "peak_counts/peaks.csv"), sep=",", index_col=0
-    )
+    peak_df = pd.read_csv(os.path.join(args.atac_dir, "peak_counts/peaks.csv"), sep=",")
     peak_names = (
         peak_df.seqnames
         + ":"
@@ -136,7 +135,7 @@ def preprocess_data(rna_adata, bc, mat, mc_assignments, peak_df):
 
     mat2 = (
         pd.DataFrame(mat.todense().T, index=bc.index)
-        .groupby(mc_assignments.loc[bc.index], axis=0)
+        .groupby(mc_assignments.loc[bc.index])
         .sum()
     )
     atac_adata_peakscores = sc.AnnData(
@@ -223,22 +222,31 @@ def main():
     """
     Main function to run the in silico ChIP-seq analysis.
     """
+    # Parse command line arguments and load input files
     args = parse_arguments()
     df, rna_adata, mc_assignments, bc, mat, peak_df = load_input_files(args)
+
+    # Preprocess RNA and ATAC data
     rna_adata, atac_adata_peakscores, peak_names = preprocess_data(
         rna_adata, bc, mat, mc_assignments, peak_df
     )
 
+    # Calculate peak accessibility TF-IDF
     peak_acc_tf_idf = calculate_peak_acc_tf_idf(atac_adata_peakscores)
+
+    # Filter transcription factors
     tfs = np.intersect1d(rna_adata.var_names, df.index)
     df = df.loc[tfs]
 
+    # Extract TF expression and peak accessibility matrices
     TFExp = rna_adata[:, tfs].X.toarray()
     PeakAcc = peak_acc_tf_idf
 
+    # Calculate TF-peak correlations
     tf_peak_correlations = calculate_tf_peak_correlations(TFExp, PeakAcc, args.mode)
     max_peak_acc = np.max(PeakAcc, axis=0)
 
+    # Prepare peak information dataframe
     new_peaks_df = atac_adata_peakscores.var.loc[:, ["seqnames", "start", "end"]]
     new_peaks_df.loc[:, "peak_name"] = (
         new_peaks_df.seqnames
@@ -248,13 +256,16 @@ def main():
         + new_peaks_df.end.astype(str)
     )
 
+    # Sort and deduplicate motif scores
     df = df.sort_values("motifscore", ascending=False).drop_duplicates(
         ["tf", "peak_name"]
     )
 
+    # Initialize arrays for binding scores and peaks
     tf_binding_scores = np.zeros((tfs.shape[0], peak_names.shape[0]))
     tf_peaks = {}
 
+    # Calculate binding scores for each TF
     for i, tf in enumerate(tfs):
         print(tf)
         peak_correlations = tf_peak_correlations[i, :]
@@ -277,12 +288,10 @@ def main():
                 .fillna(0)
                 .values
             )
-
         binding_scores = calculate_binding_scores(
             peak_correlations, max_peak_acc, motif_scores
         )
         tf_binding_scores[i, :] = binding_scores
-
         if args.mode == "spearman.include_repress":
             abs_scores = np.abs(binding_scores)
             tf_peaks[tf] = np.where(abs_scores > np.percentile(abs_scores, 95))[0]
@@ -291,18 +300,12 @@ def main():
                 0
             ]
 
-    # Save results
-    mode_suffix = "" if args.mode == "pearson" else f".{args.mode}"
-    fn_scores = os.path.join(
-        args.output_dir, f"tf_binding_scores.ISChIP{mode_suffix}.csv"
-    )
-    fn_peaks = os.path.join(args.output_dir, f"tf_peaks.ISChIP_idx{mode_suffix}.pkl")
-
+    # Save results to files
     pd.DataFrame(tf_binding_scores, index=tfs, columns=new_peaks_df.peak_name).to_csv(
-        fn_scores, sep="\t"
+        args.output_csv, sep="\t"
     )
 
-    with open(fn_peaks, "wb") as handle:
+    with open(args.output_pkl, "wb") as handle:
         pickle.dump(tf_peaks, handle)
 
 
