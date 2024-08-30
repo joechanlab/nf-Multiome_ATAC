@@ -14,6 +14,38 @@ set.seed(1)
 addArchRThreads(threads = 12)
 addArchRGenome('hg38')
 
+get_overlaps <- function(peaks, motif_matches, tf) {
+    # Input:
+    #   peaks: GRanges object containing peak regions
+    #   motif_matches: GRanges object containing motif match regions
+    #   tf: character, name of the transcription factor
+
+    # Assign input GRanges objects to variables
+    gr1 <- motif_matches
+    gr2 <- peaks
+
+    # Find overlaps between peaks and motif matches
+    hits <- findOverlaps(gr2, gr1, ignore.strand = TRUE)
+
+    # Get indices of overlapping regions
+    idx <- queryHits(hits)  # Indices of overlapping peaks
+    idx2 <- subjectHits(hits)  # Indices of overlapping motif matches
+
+    # Create a DataFrame with overlap information
+    values <- unique(DataFrame(
+        tf = tf,
+        chr = seqnames(gr2)[idx],
+        start = start(gr2)[idx],
+        end = end(gr2)[idx],
+        motifscore = gr1$score[idx2]
+    ))
+
+    # Convert DataFrame to data.frame
+    values <- as.data.frame(values)
+
+    return(values)
+}
+
 # Parse command line arguments
 option_list <- list(
     make_option(c("-f", "--input_fragment"), type="character", default=NULL,
@@ -55,7 +87,7 @@ ArrowFiles <- createArrowFiles(
 proj_name <- opt$output_dir
 proj <- ArchRProject(
     ArrowFiles = ArrowFiles,
-    outputDirectory = proj_name,
+    outputDirectory = paste0(proj_name, "_raw"),
     copyArrows = FALSE
 )
 
@@ -88,27 +120,35 @@ proj <- addPeakMatrix(proj, maxFragmentLength=147, ceiling=10^9)
 
 # Add motif annotations
 proj <- addMotifAnnotations(ArchRProj = proj, motifSet = "cisbp", name = "Motif", force = TRUE)
+peaks <- getPeakSet(proj)
+motif_matches <- readRDS(proj@peakAnnotation[['Motif']]$Positions)
+df <- data.frame(matrix(ncol = 5, nrow = 0))
+for (tf in names(motif_matches)) {
+    if (length(motif_matches[[tf]]) > 0) {
+        df <- rbind(df, get_overlaps(peaks, motif_matches[[tf]], tf))
+    }
+}
+df$tf_name <- sapply(df$tf, function(x) strsplit(x, '_')[[1]][1])
+df$peak_name <- paste0(df$chr, ':', df$start, '-', df$end)
+df <- df %>%
+    dplyr::arrange(desc(motifscore)) %>%
+    dplyr::distinct(tf, peak_name, .keep_all = TRUE)
 motif_dir <- dirname(proj@peakAnnotation[['Motif']]$Positions)
-ofile <- file.path(opt$output_dir, 'PeaksOverlapMotifs.csv')
+ofile <- file.path(proj_name, 'PeaksOverlapMotifs.csv')
 write.table(df, ofile, row.names=FALSE, quote=FALSE, sep='\t')
 
-# Save ArchR project
-proj <- saveArchRProject(ArchRProj = proj)
-
-# Extract and reorder peak information
-peaks <- getPeakSet(proj)
+# Extract peak counts
+peak_counts_dir <- file.path(proj_name, "peak_counts")
+dir.create(peak_counts_dir)
 peak.counts <- getMatrixFromProject(proj, 'PeakMatrix')
 chr_order <- sort(seqlevels(peaks))
 reordered_features <- lapply(chr_order, function(chr) peaks[seqnames(peaks) == chr])
 reordered_features <- Reduce("c", reordered_features)
-
-# Export peak counts and information
-peak_counts_dir <- file.path(proj_name, "peak_counts")
-dir.create(peak_counts_dir)
+names(reordered_features) <- sprintf("Peak%d", seq_along(reordered_features))
 counts <- assays(peak.counts)[['PeakMatrix']]
 writeMM(counts, file.path(peak_counts_dir, "counts.mtx"))
-
 write.csv(colnames(peak.counts), file.path(peak_counts_dir, "cells.csv"), quote=FALSE, row.names=FALSE)
-
-names(reordered_features) <- sprintf("Peak%d", seq_along(reordered_features))
 write.csv(as.data.frame(reordered_features), file.path(peak_counts_dir, "peaks.csv"), quote=FALSE, row.names=FALSE)
+
+# Save ArchR project
+proj <- saveArchRProject(ArchRProj = proj)
