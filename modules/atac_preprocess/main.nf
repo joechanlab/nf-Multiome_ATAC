@@ -4,18 +4,21 @@ process ATAC_PREPROCESS {
     publishDir "${params.outdir}/atac_preprocess/", mode: 'copy'
 
     input:
-    tuple val(name), path(rna_h5ad_path), path(atac_h5ad_path), path(fragment_path), path(fragment_index_path)
+    tuple val(name), val(rna_h5), val(rna_h5ad), val(rna_seacells_h5ad), val(rna_seacells_dir), val(atac_h5ad), val(fragment_path), val(fragment_index_path)
 
     output:
     val name, emit: name
     path "${name}_atac_archr", emit: output_dir
+    val rna_seacells_h5ad, emit: rna_seacells_h5ad
+    val rna_seacells_dir, emit: rna_seacells_dir
+    val rna_h5, emit: rna_h5
+    val rna_h5ad, emit: rna_h5ad
 
     script:
     """
-    export NUMBA_CACHE_DIR=\$PWD
     Rscript ${baseDir}/bin/atac_preprocessing.R \
         -f ${fragment_path} \
-        -a ${rna_h5ad_path} \
+        -a ${rna_h5ad} \
         -s ${name} \
         -o ${name}_atac_archr
     """

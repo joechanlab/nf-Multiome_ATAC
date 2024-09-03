@@ -72,6 +72,7 @@ filterTSS <- 9
 filterFrags <- ifelse(grepl('RU581_LN', opt$sample_name), 5000, 2000)
 
 # Create Arrow files
+print("Creating Arrow files...")
 ArrowFiles <- createArrowFiles(
     inputFiles = opt$input_fragment,
     sampleNames = opt$sample_name,
@@ -84,25 +85,32 @@ ArrowFiles <- createArrowFiles(
 )
 
 # Create ArchR project
+print("Creating ArchR project...")
 proj_name <- opt$output_dir
+raw_dir <- paste0(proj_name, "_raw")
+dir.create(proj_name, showWarnings = FALSE, recursive = TRUE)
+dir.create(raw_dir, showWarnings = FALSE, recursive = TRUE)
 proj <- ArchRProject(
     ArrowFiles = ArrowFiles,
-    outputDirectory = paste0(proj_name, "_raw"),
-    copyArrows = FALSE
+    outputDirectory = raw_dir,
+    copyArrows = TRUE
 )
 
 # Load RNA data and subset cells
+print("Reading RNA data and subsetting cells...")
 adata <- read_h5ad(opt$input_h5ad)
 multiome_cells <- paste0(opt$sample_name, "#", rownames(adata))
 multiome_cells <- intersect(multiome_cells, getCellNames(proj))
 proj <- subsetArchRProject(proj, multiome_cells, proj_name, force=TRUE)
 
 # Perform dimensionality reduction and clustering
+print("Performing dimensionality reduction and clustering...")
 proj <- addIterativeLSI(ArchRProj = proj, useMatrix = "TileMatrix",
     name = "IterativeLSI", scaleDims=FALSE, force=TRUE, varFeatures=25000)
 var_features <- proj@reducedDims[['IterativeLSI']]$LSIFeatures
 
 # Add gene score matrices
+print("Adding gene score matrices...")
 chrs <- getChromSizes(proj)
 var_features_gr <- GRanges(var_features$seqnames, IRanges(var_features$start, var_features$start + 500))
 blacklist <- setdiff(chrs, var_features_gr)
@@ -110,6 +118,7 @@ proj <- addGeneScoreMatrix(proj, matrixName='GeneScoreMatrix', force=TRUE, black
 proj <- addGeneScoreMatrix(proj, matrixName='GeneScoreMatrixFull', force=TRUE)
 
 # Perform clustering and peak calling
+print("Performing clustering and peak calling...")
 lsi <- getReducedDims(proj, reducedDims = 'IterativeLSI')
 res_phenograph <- Rphenograph(lsi, k=15)
 clusters_phenograph <- membership(res_phenograph[[2]])
@@ -119,6 +128,7 @@ proj <- addReproduciblePeakSet(proj, groupBy='Clusters')
 proj <- addPeakMatrix(proj, maxFragmentLength=147, ceiling=10^9)
 
 # Add motif annotations
+print("Adding motif annotations...")
 proj <- addMotifAnnotations(ArchRProj = proj, motifSet = "cisbp", name = "Motif", force = TRUE)
 peaks <- getPeakSet(proj)
 motif_matches <- readRDS(proj@peakAnnotation[['Motif']]$Positions)
@@ -138,6 +148,7 @@ ofile <- file.path(proj_name, 'PeaksOverlapMotifs.csv')
 write.table(df, ofile, row.names=FALSE, quote=FALSE, sep='\t')
 
 # Extract peak counts
+print("Extracting peak counts...")
 peak_counts_dir <- file.path(proj_name, "peak_counts")
 dir.create(peak_counts_dir)
 peak.counts <- getMatrixFromProject(proj, 'PeakMatrix')
@@ -151,4 +162,5 @@ write.csv(colnames(peak.counts), file.path(peak_counts_dir, "cells.csv"), quote=
 write.csv(as.data.frame(reordered_features), file.path(peak_counts_dir, "peaks.csv"), quote=FALSE, row.names=FALSE)
 
 # Save ArchR project
+print("Saving ArchR project...")
 proj <- saveArchRProject(ArchRProj = proj)
