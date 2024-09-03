@@ -4,7 +4,11 @@ nextflow.enable.dsl = 2
 
 include { ATAC_QC } from './modules/atac_qc'
 include { ATAC_PREPROCESS } from './modules/atac_preprocess'
-
+include { ATAC_INSILICOCHIP } from './modules/atac_insilicochip'
+include { ATAC_CHROMVAR } from './modules/atac_chromvar'
+include { ATAC_PEAK2GENE } from './modules/atac_peak2gene'
+include { ATAC_GETMARKERS } from './modules/atac_getmarkers'
+include { ATAC_PREPROCESS_SNAPATAC2 } from './modules/atac_preprocess_snapatac2'
 workflow {
     // Access the samplesheet
     sample_sheet = file(params.samplesheet)
@@ -14,8 +18,8 @@ workflow {
 
     // Create a channel from the paths
     ch_input = Channel.from(sample_sheet_data).map { row ->
-        def (name, rna_h5ad_path, atac_h5ad_path, fragment_path, fragment_index_path) = row
-        return tuple(name, file(rna_h5ad_path), file(atac_h5ad_path), file(fragment_path), file(fragment_index_path))
+        def (name, rna_h5, rna_h5ad, rna_seacells_h5ad, rna_seacells_dir, atac_h5ad, fragment_path, fragment_index_path) = row
+        return tuple(name, rna_h5, rna_h5ad, rna_seacells_h5ad, rna_seacells_dir, atac_h5ad, fragment_path, fragment_index_path)
     }
 
     // Run ATAC QC
@@ -23,4 +27,21 @@ workflow {
 
     // Run ATAC preprocessing
     ATAC_PREPROCESS(ch_input)
+
+    // Run In Silico CHIP
+    ATAC_INSILICOCHIP(ATAC_PREPROCESS.out.name, ATAC_PREPROCESS.out.output_dir, ATAC_PREPROCESS.out.rna_seacells_h5ad, ATAC_PREPROCESS.out.rna_seacells_dir, ATAC_PREPROCESS.out.rna_h5, ATAC_PREPROCESS.out.rna_h5ad)
+
+    // Run ChromVAR
+    ATAC_CHROMVAR(ATAC_INSILICOCHIP.out.name, ATAC_INSILICOCHIP.out.arrow_dir, ATAC_INSILICOCHIP.out.output_pkl, ATAC_INSILICOCHIP.out.rna_h5, ATAC_INSILICOCHIP.out.rna_h5ad)
+
+    // Run Peak2Gene
+    ATAC_PEAK2GENE(ATAC_CHROMVAR.out.name, ATAC_CHROMVAR.out.out_dir, ATAC_CHROMVAR.out.rna_h5, ATAC_CHROMVAR.out.rna_h5ad)
+
+    // ATAC_GETMARKERS
+    ATAC_GETMARKERS(ATAC_PEAK2GENE.out.name, ATAC_PEAK2GENE.out.out_dir, ATAC_PEAK2GENE.out.rna_h5ad)
+
+    // Run SnapATAC2 instead for preprocessing
+    if (params.snapatac2) {
+        ATAC_PREPROCESS_SNAPATAC2(ch_input)
+    }
 }
