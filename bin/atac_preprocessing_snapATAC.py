@@ -99,8 +99,8 @@ def perform_peak_analysis(data, genome, peak_mtx_path, motifs_output_path):
 
 def main():
     args = parse_arguments()
+    os.makedirs(args.output_dir, exist_ok=True)
     paths = setup_output_paths(args)
-
     data = process_atac_data(args, paths)
     subset_multiome_cells(data, args.input_h5ad)
     perform_analysis(data)

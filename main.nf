@@ -8,7 +8,7 @@ include { ATAC_INSILICOCHIP } from './modules/atac_insilicochip'
 include { ATAC_CHROMVAR } from './modules/atac_chromvar'
 include { ATAC_PEAK2GENE } from './modules/atac_peak2gene'
 include { ATAC_GETMARKERS } from './modules/atac_getmarkers'
-include { ATAC_PREPROCESS_SNAPATAC2 } from './modules/atac_preprocess_snapatac2'
+include { ATAC_PREPROCESS_SNAPATAC2 } from './modules/atac_preprocess_SnapATAC2'
 workflow {
     // Access the samplesheet
     sample_sheet = file(params.samplesheet)
