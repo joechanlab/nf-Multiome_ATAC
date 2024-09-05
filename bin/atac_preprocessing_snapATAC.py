@@ -82,9 +82,9 @@ def create_gene_matrix(data, genome, output_path):
 
 def perform_peak_analysis(data, genome, peak_mtx_path, motifs_output_path):
     print("Peak calling and motif annotations...")
-    snap.tl.macs3(data, groupby="leiden")
+    snap.tl.macs3(data, groupby="leiden", max_frag_size=147)
     peaks = snap.tl.merge_peaks(data.uns["macs3"], genome)
-    peak_mat = snap.pp.make_peak_matrix(data, use_rep=peaks["Peaks"])
+    peak_mat = snap.pp.make_peak_matrix(data, use_rep=peaks["Peaks"], max_frag_size=147)
     peak_mat.write(peak_mtx_path, compression="gzip")
 
     marker_peaks = snap.tl.marker_regions(peak_mat, groupby="leiden", pvalue=0.01)
