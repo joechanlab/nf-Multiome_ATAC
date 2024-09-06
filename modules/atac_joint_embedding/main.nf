@@ -10,14 +10,14 @@ process ATAC_JOINT_EMBEDDING {
 
     output:
     val name, emit: name
-    path "{name}", emit: output_dir
+    path "${name}", emit: output_dir
 
     script:
     """
     export NUMBA_CACHE_DIR=\$PWD
     python ${baseDir}/bin/atac_joint_embedding.py \
         ${name} \
-        ${atac_dir}/{name}_snapatac2.h5ad \
+        ${atac_dir}/${name}_snapatac2.h5ad \
         ${rna_h5ad}
     """
 }
