@@ -7,7 +7,9 @@ process ATAC_PREPROCESS_SNAPATAC2 {
     tuple val(name), val(rna_h5), val(rna_h5ad), val(rna_seacells_h5ad), val(rna_seacells_dir), val(atac_h5ad), val(fragment_path), val(fragment_index_path)
 
     output:
+    val name, emit: name
     path "${name}", emit: output_dir
+    val rna_h5ad, emit: rna_h5ad
 
     script:
     """

@@ -9,6 +9,8 @@ include { ATAC_CHROMVAR } from './modules/atac_chromvar'
 include { ATAC_PEAK2GENE } from './modules/atac_peak2gene'
 include { ATAC_GETMARKERS } from './modules/atac_getmarkers'
 include { ATAC_PREPROCESS_SNAPATAC2 } from './modules/atac_preprocess_SnapATAC2'
+include { ATAC_JOINT_EMBEDDING } from './modules/atac_joint_embedding'
+
 workflow {
     // Access the samplesheet
     sample_sheet = file(params.samplesheet)
@@ -43,5 +45,6 @@ workflow {
     // Run SnapATAC2 instead for preprocessing
     if (params.snapatac2) {
         ATAC_PREPROCESS_SNAPATAC2(ch_input)
+        ATAC_JOINT_EMBEDDING(ATAC_PREPROCESS_SNAPATAC2.out.name, ATAC_PREPROCESS_SNAPATAC2.out.output_dir, ATAC_PREPROCESS_SNAPATAC2.out.rna_h5ad)
     }
 }
