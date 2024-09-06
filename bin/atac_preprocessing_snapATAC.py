@@ -42,7 +42,7 @@ def setup_output_paths(args):
             args.output_dir, f"{args.sample_name}_motif_enrichment.pkl"
         ),
         "diff_peaks_h5ad": os.path.join(
-            args.output_dir, f"{args.sample_name}_diff_peaks.h5ad"
+            args.output_dir, f"{args.sample_name}_diff_peaks.csv"
         ),
     }
 
