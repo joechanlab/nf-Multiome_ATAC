@@ -10,6 +10,7 @@ include { ATAC_PEAK2GENE } from './modules/atac_peak2gene'
 include { ATAC_GETMARKERS } from './modules/atac_getmarkers'
 include { ATAC_PREPROCESS_SNAPATAC2 } from './modules/atac_preprocess_SnapATAC2'
 include { ATAC_JOINT_EMBEDDING } from './modules/atac_joint_embedding'
+include { ATAC_NETWORK_ANALYSIS } from './modules/atac_network_analysis'
 
 workflow {
     // Access the samplesheet
@@ -46,5 +47,6 @@ workflow {
     if (params.snapatac2) {
         ATAC_PREPROCESS_SNAPATAC2(ch_input)
         ATAC_JOINT_EMBEDDING(ATAC_PREPROCESS_SNAPATAC2.out.name, ATAC_PREPROCESS_SNAPATAC2.out.output_dir, ATAC_PREPROCESS_SNAPATAC2.out.rna_h5ad)
+        ATAC_NETWORK_ANALYSIS(ATAC_PREPROCESS_SNAPATAC2.out.name, ATAC_PREPROCESS_SNAPATAC2.out.output_dir)
     }
 }
