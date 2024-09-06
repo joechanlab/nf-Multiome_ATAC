@@ -5,6 +5,8 @@ import argparse
 import snapatac2 as snap
 import anndata as ad
 import pickle
+import numpy as np
+import polars as pl
 
 
 def parse_arguments():
@@ -38,6 +40,9 @@ def setup_output_paths(args):
         ),
         "motifs_output": os.path.join(
             args.output_dir, f"{args.sample_name}_motif_enrichment.pkl"
+        ),
+        "diff_peaks_h5ad": os.path.join(
+            args.output_dir, f"{args.sample_name}_diff_peaks.h5ad"
         ),
     }
 
@@ -95,6 +100,40 @@ def perform_peak_analysis(data, genome, peak_mtx_path, motifs_output_path):
     )
     with open(motifs_output_path, "wb") as f:
         pickle.dump(motifs, f)
+    return peak_mat, peaks
+
+
+def pick_background(groups, group, n=30):
+    unique_groups = np.unique(groups)
+    background_mask = np.zeros(len(groups), dtype=bool)
+    for other_group in unique_groups:
+        if other_group != group:
+            group_indices = np.where(groups == other_group)[0]
+            selected_indices = np.random.choice(
+                group_indices, size=min(n, len(group_indices)), replace=False
+            )
+            background_mask[selected_indices] = True
+    return background_mask
+
+
+def perform_diff_test(data, peak_mat, peaks, output_path, groupby="leiden"):
+    print("Performing differential expression analysis...")
+    groups = data.obs[groupby].unique()
+    diff_peaks_combined = pl.DataFrame()
+    for group in groups:
+        is_background = pick_background(data.obs[groupby], group)
+        is_group = data.obs[groupby] == group
+        diff_peaks = snap.tl.diff_test(
+            peak_mat,
+            cell_group1=is_group,
+            cell_group2=is_background,
+            features=peaks[group].to_numpy(),
+            direction="positive",
+        )
+        diff_peaks_group = diff_peaks.filter(pl.col("adjusted p-value") < 0.01)
+        diff_peaks_group = diff_peaks_group.with_columns(pl.lit(group).alias("group"))
+        diff_peaks_combined = pl.concat([diff_peaks_combined, diff_peaks_group])
+    diff_peaks_combined.write_csv(output_path)
 
 
 def main():
@@ -105,10 +144,10 @@ def main():
     subset_multiome_cells(data, args.input_h5ad)
     perform_analysis(data)
     create_gene_matrix(data, args.genome, paths["gene_mtx_h5ad"])
-    perform_peak_analysis(
+    peak_mat, peaks = perform_peak_analysis(
         data, args.genome, paths["peak_mtx_h5ad"], paths["motifs_output"]
     )
-
+    perform_diff_test(data, peak_mat, peaks, paths["diff_peaks_h5ad"])
     data.close()
 
 
