@@ -15,8 +15,10 @@ process ATAC_NETWORK_ANALYSIS {
     """
     export NUMBA_CACHE_DIR=\$PWD
     python ${baseDir}/bin/atac_network_analysis.py \
-        ${name} \
-        ${atac_dir}/${name}_snapatac2.h5ad \
-        ${atac_dir}/${name}_motif_enrichment.pkl
+        ${atac_dir}/${name}_peak_mtx.h5ad \
+        ${atac_dir}/${name}_gene_mtx.h5ad \
+        ${atac_dir}/${name}_diff_peaks.csv \
+        ${atac_dir}/${name}_motif_enrichment.pkl \
+        --output_dir ${name}
     """
 }
