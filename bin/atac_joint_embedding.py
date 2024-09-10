@@ -41,6 +41,9 @@ def load_data(atac_path, rna_path):
     atac_data = snap.read(atac_path, backed=None)
     rna_data = snap.read(rna_path, backed=None)
     rna_data.X = rna_data.X.tocsr()
+    intersect_cells = atac_data.obs_names.intersection(rna_data.obs_names)
+    atac_data = atac_data[intersect_cells]
+    rna_data = rna_data[intersect_cells]
     return atac_data, rna_data
 
 
