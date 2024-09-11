@@ -14,7 +14,8 @@ process ATAC_REPORT {
     script:
     """
     export HOME=\$PWD
-    papermill ${baseDir}/bin/atac_report.ipynb ${name}_report.ipynb -p plots ${params.report.plots}
+    python -m ipykernel install --user --name snapatac2 --display-name "Python (snapatac2)"
+    papermill ${baseDir}/bin/atac_report.ipynb ${name}_report.ipynb -p path ${name} -p plots ${params.report.plots}
     jupyter nbconvert --to html ${name}_report.ipynb
     """
 }
