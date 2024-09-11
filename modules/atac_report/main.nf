@@ -14,7 +14,7 @@ process ATAC_REPORT {
     script:
     """
     export HOME=\$PWD
-    papermill ${baseDir}/bin/atac_report.ipynb ${name}_report.ipynb
+    papermill ${baseDir}/bin/atac_report.ipynb ${name}_report.ipynb -p plots ${params.report.plots}
     jupyter nbconvert --to html ${name}_report.ipynb
     """
 }
