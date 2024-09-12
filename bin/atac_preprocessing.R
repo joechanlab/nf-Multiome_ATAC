@@ -55,7 +55,9 @@ option_list <- list(
     make_option(c("-s", "--sample_name"), type="character", default=NULL,
                 help="Sample name", metavar="STRING"),
     make_option(c("-o", "--output_dir"), type="character", default=".",
-                help="Output directory", metavar="PATH")
+                help="Output directory", metavar="PATH"),
+    make_option(c("-m", "--pathToMacs"), type="character", default=NULL,
+                help="Path to Macs", metavar="PATH")
 )
 
 opt_parser <- OptionParser(option_list=option_list)
@@ -124,7 +126,7 @@ res_phenograph <- Rphenograph(lsi, k=15)
 clusters_phenograph <- membership(res_phenograph[[2]])
 proj$Clusters <- paste0('C', as.character(clusters_phenograph))
 proj <- addGroupCoverages(proj, groupBy='Clusters', maxFragmentLength=147)
-proj <- addReproduciblePeakSet(proj, groupBy='Clusters')
+proj <- addReproduciblePeakSet(proj, groupBy='Clusters', pathToMacs2=opt$pathToMacs)
 proj <- addPeakMatrix(proj, maxFragmentLength=147, ceiling=10^9)
 
 # Add motif annotations
