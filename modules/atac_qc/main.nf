@@ -3,6 +3,7 @@ process ATAC_QC {
     container 'library://mamie_wang/nf-scrnaseq/muon.sif:latest'
     containerOptions "--bind ${params.mount}"
     publishDir "${params.outdir}/atac_qc/", mode: 'copy'
+    cache 'lenient'
 
     input:
     tuple val(name), val(rna_h5), val(rna_h5ad), val(rna_seacells_h5ad), val(rna_seacells_dir), val(atac_h5ad), val(fragment_path), val(fragment_index_path)

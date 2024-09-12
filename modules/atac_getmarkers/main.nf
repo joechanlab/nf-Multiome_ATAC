@@ -2,6 +2,7 @@ process ATAC_GETMARKERS {
     label 'process_medium'
     conda '/usersoftware/chanj3/ArchR'
     publishDir "${params.outdir}/atac_getmarkers/", mode: 'copy'
+    cache 'lenient'
 
     input:
     val name

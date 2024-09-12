@@ -2,6 +2,7 @@ process ATAC_JOINT_EMBEDDING {
     label 'process_medium'
     conda "/usersoftware/chanj3/SnapATAC2"
     publishDir "${params.outdir}/atac_joint_embedding/", mode: 'copy'
+    cache 'lenient'
 
     input:
     val name

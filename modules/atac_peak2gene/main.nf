@@ -2,6 +2,7 @@ process ATAC_PEAK2GENE {
     label 'process_medium'
     conda '/usersoftware/chanj3/ArchR'
     publishDir "${params.outdir}/atac_peak2gene/", mode: 'copy'
+    cache 'lenient'
 
     input:
     val name

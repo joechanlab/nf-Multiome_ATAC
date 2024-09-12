@@ -2,6 +2,7 @@ process ATAC_NETWORK_ANALYSIS {
     label 'process_medium'
     conda "/usersoftware/chanj3/SnapATAC2"
     publishDir "${params.outdir}/atac_network_analysis/", mode: 'copy'
+    cache 'lenient'
 
     input:
     val name

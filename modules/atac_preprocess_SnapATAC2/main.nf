@@ -2,6 +2,7 @@ process ATAC_PREPROCESS_SNAPATAC2 {
     label 'process_medium'
     conda "/usersoftware/chanj3/SnapATAC2"
     publishDir "${params.outdir}/atac_preprocess_snapatac2/", mode: 'copy'
+    cache 'lenient'
 
     input:
     tuple val(name), val(rna_h5), val(rna_h5ad), val(rna_seacells_h5ad), val(rna_seacells_dir), val(atac_h5ad), val(fragment_path), val(fragment_index_path)

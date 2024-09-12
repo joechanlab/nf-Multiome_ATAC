@@ -2,6 +2,7 @@ process ATAC_REPORT {
     label 'process_medium'
     conda "/usersoftware/chanj3/SnapATAC2"
     publishDir "${params.outdir}/atac_report/", mode: 'copy'
+    cache 'lenient'
 
     input:
     val name

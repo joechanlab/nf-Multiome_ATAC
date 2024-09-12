@@ -2,6 +2,7 @@ process ATAC_CHROMVAR {
     label 'process_medium'
     conda '/usersoftware/chanj3/ArchR'
     publishDir "${params.outdir}/atac_chromvar/", mode: 'copy'
+    cache 'lenient'
 
     input:
     val name

@@ -3,6 +3,7 @@ process ATAC_INSILICOCHIP {
     container 'library://mamie_wang/nf-scrnaseq/postprocessing.sif:latest'
     containerOptions "--bind ${params.mount}"
     publishDir "${params.outdir}/atac_insilicochip/", mode: 'copy'
+    cache 'lenient'
 
     input:
     val name
